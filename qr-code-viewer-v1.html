@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <title>QR Code Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --text: #172033;
+      --muted: #64748b;
+      --border: #dbe3ee;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-soft: #eff6ff;
+      --success: #15803d;
+      --success-soft: #f0fdf4;
+      --danger: #b91c1c;
+      --danger-soft: #fef2f2;
+      --warning: #a16207;
+      --warning-soft: #fffbeb;
+      --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.08), transparent 30%),
+        var(--bg);
+    }
+
+    button, input { font: inherit; }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .page {
+      width: min(900px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 48px 0 72px;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: #1e40af;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 14px 0 8px;
+      font-size: clamp(30px, 5vw, 44px);
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0 auto;
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .privacy-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 14px;
+      color: #475569;
+      font-size: 13px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid rgba(203, 213, 225, 0.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .input-card {
+      padding: 20px;
+    }
+
+    .drop-zone {
+      min-height: 270px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 22px;
+      border: 2px dashed #b9c6d8;
+      border-radius: 15px;
+      background: linear-gradient(180deg, #ffffff, #f8fbff);
+      text-align: center;
+      transition: border-color .18s ease, background .18s ease, transform .18s ease;
+      outline: none;
+    }
+
+    .drop-zone.drag-over,
+    .drop-zone:focus-visible {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      transform: translateY(-1px);
+    }
+
+    .qr-icon {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+
+    .drop-zone h2 {
+      margin: 0 0 7px;
+      font-size: 22px;
+    }
+
+    .drop-zone p {
+      margin: 3px 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    .btn-secondary {
+      background: #fff;
+      color: #334155;
+      border-color: var(--border);
+    }
+
+    .btn-secondary:hover { background: #f8fafc; }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: #334155;
+    }
+
+    .hidden { display: none !important; }
+
+    .status {
+      margin-top: 14px;
+      padding: 11px 13px;
+      border-radius: 11px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .status.info { background: #eff6ff; color: #1e40af; }
+    .status.error { background: var(--danger-soft); color: var(--danger); }
+    .status.warning { background: var(--warning-soft); color: var(--warning); }
+    .status.success { background: var(--success-soft); color: var(--success); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .preview-card,
+    .result-card {
+      padding: 18px;
+      animation: appear .22s ease both;
+    }
+
+    @keyframes appear {
+      from { opacity: 0; transform: scale(.985) translateY(3px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .section-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .preview-wrap {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 13px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    .preview-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .preview-meta {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .preview-actions { margin-top: 12px; }
+    .preview-actions .btn { width: 100%; }
+
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .type-title {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .type-icon {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      flex: 0 0 auto;
+    }
+
+    .type-icon svg { width: 23px; height: 23px; }
+
+    .type-title h2 {
+      margin: 0;
+      font-size: 21px;
+    }
+
+    .type-title p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .field-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-soft);
+      padding: 12px 13px;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .field-value {
+      min-width: 0;
+      flex: 1;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.5;
+    }
+
+    .field-value a {
+      color: var(--primary-dark);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .mini-btn {
+      flex: 0 0 auto;
+      min-height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 7px 10px;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    details.raw {
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 13px;
+    }
+
+    details.raw summary {
+      cursor: pointer;
+      color: #475569;
+      font-weight: 700;
+      user-select: none;
+    }
+
+    .raw-data {
+      margin-top: 10px;
+      padding: 12px;
+      max-height: 210px;
+      overflow: auto;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .footer {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(94%, 900px);
+        padding-top: 28px;
+      }
+
+      .input-card { padding: 14px; }
+      .drop-zone { min-height: 250px; padding: 28px 16px; }
+      .workspace { grid-template-columns: 1fr; }
+      .preview-card { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; }
+      .preview-actions { margin-top: 8px; }
+      .preview-meta { margin-top: 4px; }
+      .section-label { grid-column: 1 / -1; margin-bottom: 0; }
+    }
+
+    @media (max-width: 460px) {
+      .preview-card { grid-template-columns: 100px 1fr; }
+      .field-row { align-items: flex-start; }
+      .result-header { flex-direction: column; }
+      .btn { width: 100%; }
+      .actions { width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="hero-badge">QR Code Decoder</div>
+      <h1>QR Code Viewer</h1>
+      <p class="subtitle">貼上、拖放或選擇一張 QR Code 圖片，立即查看當中的網址、Wi‑Fi 或文字資料。</p>
+      <div class="privacy-note" aria-label="私隱提示">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+        QR Code 圖片只會在你的瀏覽器內分析，不會上傳。
+      </div>
+    </header>
+
+    <section class="card input-card">
+      <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="貼上、拖放或選擇 QR Code 圖片">
+        <svg class="qr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+          <rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/>
+          <path d="M13 13h3v3h-3zM18 13h3M18 16h3v5h-5v-3M13 18v3h2"/>
+        </svg>
+        <h2>貼上 QR Code</h2>
+        <p>在電腦上按 <strong>Ctrl + V</strong>／<strong>⌘ + V</strong></p>
+        <p>或把圖片拖放到這裡</p>
+        <div class="actions">
+          <button id="chooseBtn" type="button" class="btn btn-primary">選擇圖片</button>
+        </div>
+        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/*" class="hidden" />
+      </div>
+      <div id="status" class="status hidden" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="workspace" class="workspace hidden" aria-live="polite">
+      <aside class="card preview-card">
+        <div class="section-label">Image Preview</div>
+        <div class="preview-wrap">
+          <img id="previewImage" alt="已選擇的 QR Code 圖片預覽" />
+        </div>
+        <div>
+          <div id="previewMeta" class="preview-meta"></div>
+          <div class="preview-actions">
+            <button id="replaceBtn" type="button" class="btn btn-secondary">更換 QR Code</button>
+          </div>
+        </div>
+      </aside>
+
+      <section id="resultCard" class="card result-card"></section>
+    </section>
+
+    <footer class="footer">V1 · Client-side QR Code Decoder</footer>
+  </main>
+
+  <canvas id="decodeCanvas" class="hidden"></canvas>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const dropZone = document.getElementById('dropZone');
+      const chooseBtn = document.getElementById('chooseBtn');
+      const fileInput = document.getElementById('fileInput');
+      const replaceBtn = document.getElementById('replaceBtn');
+      const statusEl = document.getElementById('status');
+      const workspace = document.getElementById('workspace');
+      const previewImage = document.getElementById('previewImage');
+      const previewMeta = document.getElementById('previewMeta');
+      const resultCard = document.getElementById('resultCard');
+      const canvas = document.getElementById('decodeCanvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      let activeObjectUrl = null;
+      let processToken = 0;
+
+      const icons = {
+        url: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20M12 2a15.3 15.3 0 0 0 0 20"/></svg>',
+        wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>',
+        text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/></svg>'
+      };
+
+      function setStatus(message, type = 'info') {
+        if (!message) {
+          statusEl.className = 'status hidden';
+          statusEl.textContent = '';
+          return;
+        }
+        statusEl.className = `status ${type}`;
+        statusEl.textContent = message;
+      }
+
+      function escapeHTML(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+      function revokePreviewUrl() {
+        if (activeObjectUrl) {
+          URL.revokeObjectURL(activeObjectUrl);
+          activeObjectUrl = null;
+        }
+      }
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes)) return '';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function isImageFile(file) {
+        return file && typeof file.type === 'string' && file.type.startsWith('image/');
+      }
+
+      function safeHttpUrl(value) {
+        try {
+          const url = new URL(value.trim());
+          if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+        } catch (_) {}
+        return null;
+      }
+
+      // Parses Wi-Fi QR payloads while respecting escaped separators such as \; \: and \\.
+      function parseWifi(raw) {
+        if (!raw.startsWith('WIFI:')) return null;
+        const payload = raw.slice(5);
+        const fields = {};
+        let key = '';
+        let value = '';
+        let readingKey = true;
+        let escaped = false;
+
+        const commit = () => {
+          if (key) fields[key] = value;
+          key = '';
+          value = '';
+          readingKey = true;
+        };
+
+        for (let i = 0; i < payload.length; i++) {
+          const ch = payload[i];
+
+          if (escaped) {
+            (readingKey ? (key += ch) : (value += ch));
+            escaped = false;
+            continue;
+          }
+
+          if (ch === '\\') {
+            escaped = true;
+            continue;
+          }
+
+          if (readingKey && ch === ':') {
+            readingKey = false;
+            continue;
+          }
+
+          if (!readingKey && ch === ';') {
+            commit();
+            continue;
+          }
+
+          readingKey ? (key += ch) : (value += ch);
+        }
+
+        if (escaped) {
+          readingKey ? (key += '\\') : (value += '\\');
+        }
+        if (key || value) commit();
+
+        return {
+          ssid: fields.S ?? '',
+          security: fields.T || 'nopass',
+          password: fields.P ?? '',
+          hidden: /^(true|1|yes)$/i.test(fields.H || ''),
+          rawFields: fields
+        };
+      }
+
+      function classifyData(raw) {
+        const wifi = parseWifi(raw);
+        if (wifi) return { type: 'wifi', wifi };
+
+        const url = safeHttpUrl(raw);
+        if (url) return { type: 'url', url };
+
+        return { type: 'text' };
+      }
+
+      function rawDetails(raw) {
+        return `
+          <details class="raw">
+            <summary>顯示原始資料 Raw Data</summary>
+            <div class="raw-data">${escapeHTML(raw)}</div>
+          </details>`;
+      }
+
+      function renderTypeHeader(icon, title, subtitle) {
+        return `
+          <div class="result-header">
+            <div class="type-title">
+              <div class="type-icon">${icon}</div>
+              <div>
+                <h2>${escapeHTML(title)}</h2>
+                <p>${escapeHTML(subtitle)}</p>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function renderResult(raw) {
+        const parsed = classifyData(raw);
+
+        if (parsed.type === 'url') {
+          const safe = parsed.url;
+          resultCard.innerHTML = `
+            ${renderTypeHeader(icons.url, '網址 URL', '已辨識為可安全開啟的 HTTP / HTTPS 網址')}
+            <div class="field-list">
+              <div class="field">
+                <span class="field-label">網址</span>
+                <div class="field-row">
+                  <div class="field-value"><a href="${escapeHTML(safe)}" target="_blank" rel="noopener noreferrer">${escapeHTML(raw)}</a></div>
+                  <button class="mini-btn" data-copy="${escapeHTML(raw)}">複製</button>
+                </div>
+              </div>
+            </div>
+            <div class="result-actions">
+              <a class="btn btn-primary" href="${escapeHTML(safe)}" target="_blank" rel="noopener noreferrer">開啟連結</a>
+              <button class="btn btn-secondary" data-copy="${escapeHTML(raw)}">複製網址</button>
+            </div>
+            ${rawDetails(raw)}
+          `;
+          return;
+        }
+
+        if (parsed.type === 'wifi') {
+          const wifi = parsed.wifi;
+          const securityLabel = wifi.security.toLowerCase() === 'nopass' ? '無密碼 / Open' : wifi.security;
+          const passwordDisplay = wifi.password ? '••••••••' : '（沒有密碼）';
+
+          resultCard.innerHTML = `
+            ${renderTypeHeader(icons.wifi, 'Wi‑Fi 網絡', '已辨識為 Wi‑Fi QR Code')}
+            <div class="field-list">
+              <div class="field">
+                <span class="field-label">SSID / Wi‑Fi 名稱</span>
+                <div class="field-row">
+                  <div class="field-value">${escapeHTML(wifi.ssid || '（未提供）')}</div>
+                  ${wifi.ssid ? `<button class="mini-btn" data-copy="${escapeHTML(wifi.ssid)}">複製</button>` : ''}
+                </div>
+              </div>
+              <div class="field">
+                <span class="field-label">Security / 加密方式</span>
+                <div class="field-value">${escapeHTML(securityLabel)}</div>
+              </div>
+              <div class="field">
+                <span class="field-label">Password / 密碼</span>
+                <div class="field-row">
+                  <div id="wifiPassword" class="field-value" data-password="${escapeHTML(wifi.password)}" data-visible="false">${escapeHTML(passwordDisplay)}</div>
+                  ${wifi.password ? '<button id="togglePassword" class="mini-btn">顯示</button>' : ''}
+                  ${wifi.password ? `<button class="mini-btn" data-copy="${escapeHTML(wifi.password)}">複製</button>` : ''}
+                </div>
+              </div>
+              <div class="field">
+                <span class="field-label">Hidden Network / 隱藏網絡</span>
+                <div class="field-value">${wifi.hidden ? '是 Yes' : '否 No'}</div>
+              </div>
+            </div>
+            ${rawDetails(raw)}
+          `;
+
+          const toggleBtn = document.getElementById('togglePassword');
+          const passwordEl = document.getElementById('wifiPassword');
+          if (toggleBtn && passwordEl) {
+            toggleBtn.addEventListener('click', () => {
+              const visible = passwordEl.dataset.visible === 'true';
+              passwordEl.dataset.visible = String(!visible);
+              passwordEl.textContent = visible ? '••••••••' : passwordEl.dataset.password;
+              toggleBtn.textContent = visible ? '顯示' : '隱藏';
+            });
+          }
+          return;
+        }
+
+        const unsafeScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw.trim()) && !/^https?:/i.test(raw.trim());
+        resultCard.innerHTML = `
+          ${renderTypeHeader(icons.text, '文字 Text', unsafeScheme ? '此內容不會自動建立可執行連結' : '已辨識為一般文字資料')}
+          <div class="field-list">
+            <div class="field">
+              <span class="field-label">內容</span>
+              <div class="field-row">
+                <div class="field-value">${escapeHTML(raw || '（空白）')}</div>
+                ${raw ? `<button class="mini-btn" data-copy="${escapeHTML(raw)}">複製</button>` : ''}
+              </div>
+            </div>
+          </div>
+          ${rawDetails(raw)}
+        `;
+      }
+
+      async function copyText(text, button) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (_) {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          textarea.remove();
+        }
+
+        if (!button) return;
+        const old = button.textContent;
+        button.textContent = '✓ 已複製';
+        button.disabled = true;
+        setTimeout(() => {
+          button.textContent = old;
+          button.disabled = false;
+        }, 1200);
+      }
+
+      resultCard.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-copy]');
+        if (!button) return;
+        copyText(button.dataset.copy || '', button);
+      });
+
+      async function fileToImage(file, token) {
+        return new Promise((resolve, reject) => {
+          const objectUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            if (token !== processToken) {
+              URL.revokeObjectURL(objectUrl);
+              reject(new Error('superseded'));
+              return;
+            }
+            resolve({ img, objectUrl });
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('image-load-failed'));
+          };
+          img.src = objectUrl;
+        });
+      }
+
+      function getDecodeSize(width, height) {
+        // Limit extremely large screenshots to keep decoding responsive while preserving enough detail.
+        const maxSide = 1800;
+        const largest = Math.max(width, height);
+        if (largest <= maxSide) return { width, height };
+        const ratio = maxSide / largest;
+        return {
+          width: Math.max(1, Math.round(width * ratio)),
+          height: Math.max(1, Math.round(height * ratio))
+        };
+      }
+
+      function decodeImage(img) {
+        const size = getDecodeSize(img.naturalWidth, img.naturalHeight);
+        canvas.width = size.width;
+        canvas.height = size.height;
+        ctx.clearRect(0, 0, size.width, size.height);
+        ctx.drawImage(img, 0, 0, size.width, size.height);
+        const imageData = ctx.getImageData(0, 0, size.width, size.height);
+
+        if (typeof window.jsQR !== 'function') {
+          throw new Error('decoder-unavailable');
+        }
+
+        return window.jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'attemptBoth'
+        });
+      }
+
+      async function processFile(file) {
+        const token = ++processToken;
+
+        if (!isImageFile(file)) {
+          setStatus('不支援此檔案格式，請選擇 PNG、JPG、JPEG 或 WEBP 圖片。', 'error');
+          return;
+        }
+
+        setStatus('正在分析 QR Code…', 'info');
+
+        try {
+          const { img, objectUrl } = await fileToImage(file, token);
+          if (token !== processToken) return;
+
+          revokePreviewUrl();
+          activeObjectUrl = objectUrl;
+          previewImage.src = activeObjectUrl;
+          previewMeta.textContent = `${file.name || 'Clipboard image'} · ${img.naturalWidth}×${img.naturalHeight} · ${formatBytes(file.size)}`;
+          workspace.classList.remove('hidden');
+          resultCard.innerHTML = `${renderTypeHeader(icons.text, '正在分析…', '系統正在尋找圖片中的 QR Code')}`;
+
+          // Let the preview paint before heavier image processing starts.
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          if (token !== processToken) return;
+
+          const code = decodeImage(img);
+          if (token !== processToken) return;
+
+          if (!code) {
+            setStatus('未能偵測到 QR Code。請嘗試較清晰、完整或較高對比的圖片。', 'error');
+            resultCard.innerHTML = `
+              ${renderTypeHeader(icons.text, '未能讀取 QR Code', '圖片已載入，但找不到可辨識的 QR Code')}
+              <div class="status warning">請確認 QR Code 沒有被裁走、模糊或嚴重變形，再嘗試另一張圖片。</div>
+            `;
+            return;
+          }
+
+          const raw = code.data ?? '';
+          if (!raw) {
+            setStatus('QR Code 已讀取，但沒有可顯示的資料。', 'warning');
+            resultCard.innerHTML = `${renderTypeHeader(icons.text, '沒有資料', 'QR Code 沒有可顯示的內容')}`;
+            return;
+          }
+
+          renderResult(raw);
+          setStatus('QR Code 已成功讀取。', 'success');
+        } catch (error) {
+          if (error && error.message === 'superseded') return;
+          console.error(error);
+          const decoderMissing = error && error.message === 'decoder-unavailable';
+          setStatus(
+            decoderMissing
+              ? 'QR Code 解碼程式未能載入。請檢查網絡連線後重新整理頁面。'
+              : '圖片處理失敗，請嘗試使用另一張圖片。',
+            'error'
+          );
+        } finally {
+          fileInput.value = '';
+        }
+      }
+
+      function handleFiles(files) {
+        const file = files && files[0];
+        if (!file) return;
+        processFile(file);
+      }
+
+      chooseBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        fileInput.click();
+      });
+
+      replaceBtn.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+      dropZone.addEventListener('click', (event) => {
+        if (event.target.closest('button')) return;
+        fileInput.click();
+      });
+
+      dropZone.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          fileInput.click();
+        }
+      });
+
+      ['dragenter', 'dragover'].forEach(type => {
+        dropZone.addEventListener(type, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          dropZone.classList.add('drag-over');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(type => {
+        dropZone.addEventListener(type, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          dropZone.classList.remove('drag-over');
+        });
+      });
+
+      dropZone.addEventListener('drop', (event) => handleFiles(event.dataTransfer.files));
+
+      document.addEventListener('paste', (event) => {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imageItem = items.find(item => item.type.startsWith('image/'));
+        if (!imageItem) {
+          setStatus('剪貼簿內沒有圖片。請先複製 QR Code 圖片，再按 Ctrl + V／⌘ + V。', 'warning');
+          return;
+        }
+        const file = imageItem.getAsFile();
+        if (file) processFile(file);
+      });
+
+      window.addEventListener('beforeunload', revokePreviewUrl);
+    })();
+  </script>
+</body>
+</html>
